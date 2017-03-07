@@ -7,33 +7,23 @@ Script modified from (downloaded 26 Mar 2015):
     #Steve Kochaver
     #kochaver.python@gmail.com
     #Version Date 2014-7-14
+
+
+DESCRIPTION: calculate top of atmosphere reflectance (including the solar correction)
+for Landsat imagery. For Landsat <7, this requires also calculating radiance.
+
+SYNTAX:
+python full_path_to_script/Landsat_TOARefl.py [relative path of metadata file, "SITType", true/false, bands]
+    here, you must be within the imagery folder for the script to run
+    true/false indicates whether or not to keep the intermediary radiance files
+    see getESUN function for SITTypes (which vary by Landsat and aren't needed for LS8); I've been using 'ETM+ Thuillier'
 """
 
 import sys, os, math, time
 from osgeo import gdal
+import raster as raster
 
-##########  Functions  ##########
-
-#creates a georeferenced tif raster file with the same dimensions and geo info/proj coord sys as the parent raster
-def rasterfile (infile, new_raster_name, new_raster_array, dtype):    
-    #read in original raster (input file) as an array
-    infile_open = gdal.Open(infile)
-    infile_array = infile_open.GetRasterBand(1).ReadAsArray()  
-    
-    #get geo info from original
-    geo = infile_open.GetGeoTransform()
-    
-    #create new GeoTiff, apply georef info, and write new raster
-    outfile = gdal.GetDriverByName('GTiff').Create(new_raster_name, infile_array.shape[1], infile_array.shape[0], 1, dtype)
-    outfile.SetGeoTransform((geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]))
-    outfile.SetProjection(infile_open.GetProjection())
-    outfile.GetRasterBand(1).WriteArray(new_raster_array)
-   
-    infile_open = None
-    outfile= None
-    return new_raster_name
-    
-    
+##########  Functions  ##########    
 def acquireMetadata(metadata, band):
     band = str(band)
     metadatalist = []
@@ -74,7 +64,7 @@ def acquireMetadata(metadata, band):
     return metadatalist
 
 
-#Calculate the radiance from metadata on band.
+#Calculate the radiance from metadata on band. For Landsats 7 and earlier
 def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, QCAL, band):
     
     LMAX = float(LMAX)
@@ -97,7 +87,7 @@ def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, QCAL, band):
     '''    
     
     outraster_array = (offset * (inraster_array-QCALMIN)) + LMIN
-    radiance = rasterfile(QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
+    radiance = raster.rasterfile(QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
     
     return radiance
 
@@ -124,7 +114,7 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, scaleFactor
     print 'solarZenith = '+str(solarZenith)
 
     outraster_array = (math.pi * radiance_array * math.pow(solarDist, 2)) / (ESUN * math.cos(solarZenith)) * scaleFactor
-    reflectance = rasterfile(radianceRaster, reflectance, outraster_array, dtype=gdal.GDT_Float32)
+    reflectance = raster.rasterfile(radianceRaster, reflectance, outraster_array, dtype=gdal.GDT_Float32)
 
     return reflectance
     
@@ -146,7 +136,7 @@ def LS8_calcReflectance(refl_mult, refl_add, solarElevation, QCAL):
     print 'refl_add = ' + str(refl_add)
 
     outraster_array = ((refl_mult * inraster_array) + refl_add) / (math.sin(solarElevationRad))
-    reflectance = rasterfile(QCAL, reflectance, outraster_array, dtype=gdal.GDT_Float32)
+    reflectance = raster.rasterfile(QCAL, reflectance, outraster_array, dtype=gdal.GDT_Float32)
     
     return reflectance
 
@@ -261,92 +251,93 @@ def cleanList(bandList):
 
 
 #////////////////////////////////////MAIN LOOP///////////////////////////////////////
-
-#Parameters from input
-    #input format is python script [path of metadata file, "SITType", true/false, bands]
-    #note sys.argv[0] is automatically the path to the dir where the script is executed
-    #here, you must be within the imagery folder for the script to run
-##print 'cwd is ', os.getcwd()
-##os.path.dirname(os.path.abspath(sys.argv[0]))
-##print 'cwd is now ', os.getcwd()
-metadataPath = sys.argv[1]
-SIType = str(sys.argv[2])
-keepRad = str(sys.argv[3])
-scaleFactor = 1 ##float(sys.argv[4]) #scalefactor is not in the handbook as part of the calculation, but for simplicity I'm keeping the variable...
-#bandList must be entered as a list of band numbers with no seperators (e.g. 125, not 1;2;5 nor 1,2,5)
-bandList = cleanList(sys.argv[4]) #must change this to sys.argv[5] if scaleFactor is included as an input
-print 'bandList is: ', bandList
-
-metadataFile = open(metadataPath)
-metadata = readMetadata(metadataFile)
-metadataFile.close()
-
-successful = []
-failed = []
-
-for band in bandList:
-    band = str(band)
-    metlist = acquireMetadata(metadata, band)
-    SPACECRAFT_ID = metlist[0] 
+if __name__ == "__main__":
+    #Parameters from input
+        #input format is python full-script-path [relative path of metadata file, "SITType", true/false, bands]
+        #note sys.argv[0] is automatically the path to the dir where the script is executed
+        #here, you must be within the imagery folder for the script to run
+        #true/false indicates whether or not to keep the intermediary radiance files
+    ##print 'cwd is ', os.getcwd()
+    ##os.path.dirname(os.path.abspath(sys.argv[0]))
+    ##print 'cwd is now ', os.getcwd()
+    metadataPath = sys.argv[1]
+    SIType = str(sys.argv[2])
+    keepRad = str(sys.argv[3])
+    scaleFactor = 1 ##float(sys.argv[4]) #scalefactor is not in the handbook as part of the calculation, but for simplicity I'm keeping the variable...
+    #bandList must be entered as a list of band numbers with no seperators (e.g. 125, not 1;2;5 nor 1,2,5)
+    bandList = cleanList(sys.argv[4]) #must change this to sys.argv[5] if scaleFactor is included as an input
+    print 'bandList is: ', bandList
     
-    #Landsat 4,5,7 radiance and reflectance calculation
-    if metadata["SPACECRAFT_ID"] == 'LANDSAT_7':
-        BANDFILE = metlist[1]
-        LMAX = metlist[2]
-        LMIN = metlist[3]
-        QCALMAX = metlist[4]
-        QCALMIN = metlist[5]
-        DATE = metlist[6]
-        ESUNVAL = "b" + band
+    metadataFile = open(metadataPath)
+    metadata = readMetadata(metadataFile)
+    metadataFile.close()
     
-        print 'bandfile is ', metadata[BANDFILE] #
-        try:
-            radianceRaster = calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadata[BANDFILE], band)
-            print 'radianceRaster successfully executed'    
-            
-            doy = calcDOY(metadata[DATE])
-            print 'doy is ', doy    #
-                    
-            reflectanceRaster = calcReflectance(calcSolarDist(calcDOY(metadata[DATE])), getESUN(ESUNVAL, SIType), metadata['SUN_ELEVATION'], radianceRaster, scaleFactor)
-            print 'reflectanceRaster successfully executed'
-
-            #simply deletes the unneeded radianceRaster
-            if keepRad != 'true':
-                cmd = 'rm -rf ' + radianceRaster
-                os.system(cmd)
-
-            successful.append(BANDFILE)
-
-        except Exception, e:
-            failed.append(band)
-            failed.append(str(e))
-            
-    #Landsat 8 reflectance calculation (only)
-    elif metadata["SPACECRAFT_ID"] == 'LANDSAT_8':
-        BANDFILE = metlist[1]
-        REFLECTANCE_MULT = metlist[2]
-        REFLECTANCE_ADD = metlist[3]
-        DATE = metlist[4]
+    successful = []
+    failed = []
     
-        print 'bandfile is ', metadata[BANDFILE] #
+    for band in bandList:
+        band = str(band)
+        metlist = acquireMetadata(metadata, band)
+        SPACECRAFT_ID = metlist[0] 
         
-        try:
-            reflectanceRaster = LS8_calcReflectance(metadata[REFLECTANCE_MULT], metadata[REFLECTANCE_ADD], metadata['SUN_ELEVATION'], metadata[BANDFILE])
-            print 'reflectanceRaster successfully executed' #
-
-            successful.append(BANDFILE)
-
-        except Exception, e:
-            failed.append(band)
-            failed.append(str(e))                        
-
-if successful:
-   print "The following files were converted successfully:"
-   for x in successful:
-        print metadata[x]
-
-if failed:
-    for x in range(0,len(failed),2):
-        print "Band" + str(failed[x]) + " failed to execute. Error: " + failed[x+1]
-        if "object is not callable" in failed[x+1]:
-            print 'This error catching is not 100%, it probably worked anyway'
+        #Landsat 4,5,7 radiance and reflectance calculation
+        if metadata["SPACECRAFT_ID"] == 'LANDSAT_7':
+            BANDFILE = metlist[1]
+            LMAX = metlist[2]
+            LMIN = metlist[3]
+            QCALMAX = metlist[4]
+            QCALMIN = metlist[5]
+            DATE = metlist[6]
+            ESUNVAL = "b" + band
+        
+            print 'bandfile is ', metadata[BANDFILE] #
+            try:
+                radianceRaster = calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadata[BANDFILE], band)
+                print 'radianceRaster successfully executed'    
+                
+                doy = calcDOY(metadata[DATE])
+                print 'doy is ', doy    #
+                        
+                reflectanceRaster = calcReflectance(calcSolarDist(calcDOY(metadata[DATE])), getESUN(ESUNVAL, SIType), metadata['SUN_ELEVATION'], radianceRaster, scaleFactor)
+                print 'reflectanceRaster successfully executed'
+    
+                #simply deletes the unneeded radianceRaster
+                if keepRad != 'true':
+                    cmd = 'rm -rf ' + radianceRaster
+                    os.system(cmd)
+    
+                successful.append(BANDFILE)
+    
+            except Exception, e:
+                failed.append(band)
+                failed.append(str(e))
+                
+        #Landsat 8 reflectance calculation (only)
+        elif metadata["SPACECRAFT_ID"] == 'LANDSAT_8':
+            BANDFILE = metlist[1]
+            REFLECTANCE_MULT = metlist[2]
+            REFLECTANCE_ADD = metlist[3]
+            DATE = metlist[4]
+        
+            print 'bandfile is ', metadata[BANDFILE] #
+            
+            try:
+                reflectanceRaster = LS8_calcReflectance(metadata[REFLECTANCE_MULT], metadata[REFLECTANCE_ADD], metadata['SUN_ELEVATION'], metadata[BANDFILE])
+                print 'reflectanceRaster successfully executed' #
+    
+                successful.append(BANDFILE)
+    
+            except Exception, e:
+                failed.append(band)
+                failed.append(str(e))                        
+    
+    if successful:
+       print "The following files were converted successfully:"
+       for x in successful:
+            print metadata[x]
+    
+    if failed:
+        for x in range(0,len(failed),2):
+            print "Band" + str(failed[x]) + " failed to execute. Error: " + failed[x+1]
+            if "object is not callable" in failed[x+1]:
+                print 'This error catching is not 100%, it probably worked anyway'
