@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jul  2 14:34:57 2015
+Last Update: 11 May 2017
 
 @author: jessica
 
@@ -14,8 +15,8 @@ FUNCTIONS:
     calcBrightTemp
 
 SYNTAX:
-    python full-script-path/BrightTempCalc.py [relative path of metadata file, true/false, band]
-    here, you must be within the imagery folder for the script to run
+    python full-script-path/BrightTempCalc.py [full path of metadata file ending in '/', metadata filename, true/false, band]
+    files will be saved in metadata_file_path (so in imagery folder) with same naming convention as original band file names + "_bt"
     true/false indicates whether or not to keep the intermediary radiance files\
     
 Notes:
@@ -79,34 +80,34 @@ def acquireMetadata(metadata, band):
 
 
 #calculatethe radiance from metadata on band. For landsat 8
-def LS8_calcRadiance (rad_mult, rad_add, QCAL, band):
-
+def LS8_calcRadiance (rad_mult, rad_add, path, QCAL, band):
+	
     rad_mult = float(rad_mult)
     rad_add = float(rad_add)
-    inraster_open = gdal.Open(QCAL)
+    inraster_open = gdal.Open(path + QCAL)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    radiance = 'RadianceB'+str(band)+'.tif'
+    radiance = path + 'RadianceB'+str(band)+'.tif'
     inraster_open = None
     
     outraster_array = ((rad_mult * inraster_array) + rad_add)
-    radiance = raster.rasterfile(QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
+    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
     
     return radiance
 
 
 #calculates brightness temperature for LS5,7,8, in Kelvin
-def calcBrightTemp (K1, K2, radiance, band):
+def calcBrightTemp (K1, K2, radiance, path, band):
 
     K1 = float(K1)
     K2 = float(K2)
     inraster_open = gdal.Open(radiance)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    BT = 'BrightnessTempB'+str(band)+'.tif'
+    BT = path+path[-22:-1]+'_B'+str(band)+'_bt.tif'
     inraster_open = None
     
-    if not inraster_array.all():
-        print 'inraster_array empty'
-        sys.exit
+#    if not inraster_array.all():
+#        print 'inraster_array empty'
+#        sys.exit
     
     is_zero = (inraster_array<=0)
     inraster_array[is_zero] = 1   
@@ -120,14 +121,14 @@ def calcBrightTemp (K1, K2, radiance, band):
 
 #////////////////////////////////////MAIN LOOP///////////////////////////////////////
 #Parameters from input
-    #input format is python full-script-path [relative path of metadata file, true/false, band]
-    #here, you must be within the imagery folder for the script to run
+    #input format is python full-script-path/BrightTempCalc.py [full path of metadata file ending in '/', metadata filename, true/false, band]
 
 metadataPath = sys.argv[1]
-keepRad = str(sys.argv[2])
-band = str(sys.argv[3])
+metadataName = sys.argv[2]
+keepRad = str(sys.argv[3])
+band = str(sys.argv[4])
 
-metadataFile = open(metadataPath)
+metadataFile = open(metadataPath+metadataName)
 metadata = toa.readMetadata(metadataFile)
 metadataFile.close()
 
@@ -155,10 +156,10 @@ if metadata["SPACECRAFT_ID"] == 'LANDSAT_7':
     
     print 'bandfile is ', metadata[BANDFILE] #
     try:
-        radianceRaster = toa.calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadata[BANDFILE], band)
+        radianceRaster = toa.calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadataPath, metadata[BANDFILE], band)
         print 'radianceRaster successfully executed'    
                 
-        brightnessRaster = calcBrightTemp (K1, K2, radianceRaster, band)
+        brightnessRaster = calcBrightTemp (K1, K2, radianceRaster, metadataPath, band)
         print 'brightnessRaster successfully executed'
 
         #simply deletes the unneeded radianceRaster
@@ -184,10 +185,10 @@ elif metadata["SPACECRAFT_ID"] == 'LANDSAT_8':
     print 'bandfile is ', metadata[BANDFILE] #
     
     try:
-        radianceRaster = LS8_calcRadiance (metadata[RADIANCE_MULT], metadata[RADIANCE_ADD], metadata[BANDFILE], band)
+        radianceRaster = LS8_calcRadiance (metadata[RADIANCE_MULT], metadata[RADIANCE_ADD], metadataPath, metadata[BANDFILE], band)
         print 'radianceRaster successfully executed' #
         
-        brightnessRaster = calcBrightTemp (metadata[K1], metadata[K2], radianceRaster, band)
+        brightnessRaster = calcBrightTemp (metadata[K1], metadata[K2], radianceRaster, metadataPath, band)
         print 'brightness temperature successfully executed'
 
         #simply deletes the unneeded radianceRaster

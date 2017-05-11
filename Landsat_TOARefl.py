@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Mar 26 07:41:30 2015
+Last Update: 11 May 2017
 
-@author: jessica
+@author: jessica scheick
 Script modified from (downloaded 26 Mar 2015):
     #Steve Kochaver
     #kochaver.python@gmail.com
@@ -13,8 +14,8 @@ DESCRIPTION: calculate top of atmosphere reflectance (including the solar correc
 for Landsat imagery. For Landsat <7, this requires also calculating radiance.
 
 SYNTAX:
-python full_path_to_script/Landsat_TOARefl.py [relative path of metadata file, "SITType", true/false, bands]
-    here, you must be within the imagery folder for the script to run
+python full_path_to_script/Landsat_TOARefl.py [full path of metadata file ending in '/', metadata filename, "SITType", true/false, bands]
+    files will be saved in metadata_file_path (so in imagery folder) with same naming convention as original band file names + "_refl"
     true/false indicates whether or not to keep the intermediary radiance files
     see getESUN function for SITTypes (which vary by Landsat and aren't needed for LS8); I've been using 'ETM+ Thuillier'
 """
@@ -65,16 +66,16 @@ def acquireMetadata(metadata, band):
 
 
 #Calculate the radiance from metadata on band. For Landsats 7 and earlier
-def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, QCAL, band):
+def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, path, QCAL, band):
     
     LMAX = float(LMAX)
     LMIN = float(LMIN)
     QCALMAX = float(QCALMAX)
     QCALMIN = float(QCALMIN)
     offset = (LMAX - LMIN)/(QCALMAX-QCALMIN)
-    inraster_open = gdal.Open(QCAL)
+    inraster_open = gdal.Open(path+QCAL)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    radiance = 'RadianceB'+str(band)+'.tif'
+    radiance = path + 'RadianceB'+str(band)+'.tif'
     inraster_open = None
 
     '''
@@ -87,14 +88,15 @@ def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, QCAL, band):
     '''    
     
     outraster_array = (offset * (inraster_array-QCALMIN)) + LMIN
-    radiance = raster.rasterfile(QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
+    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
     
     return radiance
 
 
 #calculate reflectance from radiance and other values; for Landsat7 and earlier
-def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, scaleFactor):
+def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, path, scaleFactor):
     
+    print 'entering reflectance fn'
     #Value for solar zenith is 90 degrees minus solar elevation (angle from horizon to the center of the sun)
     #http://landsathandbook.gsfc.nasa.gov/data_properties/prog_sect6_3.html
     #note: I'm not sure why the orig. author converts to solarZenith (an extra step) - you 
@@ -102,9 +104,10 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, scaleFactor
     solarZenith = ((90.0 - (float(solarElevation)))*math.pi)/180 #Converted from deg to rad (python takes angles in rad)
     solarDist = float(solarDist)
     ESUN = float(ESUN)
+    print radianceRaster
     radiance_open = gdal.Open(radianceRaster)
     radiance_array = radiance_open.GetRasterBand(1).ReadAsArray() 
-    reflectance = 'ReflectanceB'+str(band)+'.tif'
+    reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
     radiance_open = None
     
     print 'Band'+str(band)
@@ -119,15 +122,15 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, scaleFactor
     return reflectance
     
     
-def LS8_calcReflectance(refl_mult, refl_add, solarElevation, QCAL):
+def LS8_calcReflectance(refl_mult, refl_add, solarElevation, path, QCAL):
     
     print 'LS8_calcReflectance entered' #
     solarElevationRad = (float(solarElevation)*math.pi)/180 #Converted from degr to rad (python takes angles in rad)
     refl_mult = float(refl_mult)
     refl_add = float(refl_add)
-    inraster_open = gdal.Open(QCAL)
+    inraster_open = gdal.Open(path+QCAL)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    reflectance = 'ReflectanceB'+str(band)+'.tif'
+    reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
     inraster_open = None
     
     print 'Band'+str(band)
@@ -136,7 +139,7 @@ def LS8_calcReflectance(refl_mult, refl_add, solarElevation, QCAL):
     print 'refl_add = ' + str(refl_add)
 
     outraster_array = ((refl_mult * inraster_array) + refl_add) / (math.sin(solarElevationRad))
-    reflectance = raster.rasterfile(QCAL, reflectance, outraster_array, dtype=gdal.GDT_Float32)
+    reflectance = raster.rasterfile(path+QCAL, reflectance, outraster_array, dtype=gdal.GDT_Float32)
     
     return reflectance
 
@@ -261,14 +264,15 @@ if __name__ == "__main__":
     ##os.path.dirname(os.path.abspath(sys.argv[0]))
     ##print 'cwd is now ', os.getcwd()
     metadataPath = sys.argv[1]
-    SIType = str(sys.argv[2])
-    keepRad = str(sys.argv[3])
+    metadataName = sys.argv[2]
+    SIType = str(sys.argv[3])
+    keepRad = str(sys.argv[4])
     scaleFactor = 1 ##float(sys.argv[4]) #scalefactor is not in the handbook as part of the calculation, but for simplicity I'm keeping the variable...
     #bandList must be entered as a list of band numbers with no seperators (e.g. 125, not 1;2;5 nor 1,2,5)
-    bandList = cleanList(sys.argv[4]) #must change this to sys.argv[5] if scaleFactor is included as an input
-    print 'bandList is: ', bandList
+    bandList = cleanList(sys.argv[5]) #must change this to sys.argv[5] if scaleFactor is included as an input
+    #print 'bandList is: ', bandList
     
-    metadataFile = open(metadataPath)
+    metadataFile = open(metadataPath+metadataName)
     metadata = readMetadata(metadataFile)
     metadataFile.close()
     
@@ -292,13 +296,13 @@ if __name__ == "__main__":
         
             print 'bandfile is ', metadata[BANDFILE] #
             try:
-                radianceRaster = calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadata[BANDFILE], band)
+                radianceRaster = calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadataPath, metadata[BANDFILE], band)
                 print 'radianceRaster successfully executed'    
                 
                 doy = calcDOY(metadata[DATE])
                 print 'doy is ', doy    #
                         
-                reflectanceRaster = calcReflectance(calcSolarDist(calcDOY(metadata[DATE])), getESUN(ESUNVAL, SIType), metadata['SUN_ELEVATION'], radianceRaster, scaleFactor)
+                reflectanceRaster = calcReflectance(calcSolarDist(calcDOY(metadata[DATE])), getESUN(ESUNVAL, SIType), metadata['SUN_ELEVATION'], radianceRaster, metadataPath, scaleFactor)
                 print 'reflectanceRaster successfully executed'
     
                 #simply deletes the unneeded radianceRaster
@@ -322,7 +326,7 @@ if __name__ == "__main__":
             print 'bandfile is ', metadata[BANDFILE] #
             
             try:
-                reflectanceRaster = LS8_calcReflectance(metadata[REFLECTANCE_MULT], metadata[REFLECTANCE_ADD], metadata['SUN_ELEVATION'], metadata[BANDFILE])
+                reflectanceRaster = LS8_calcReflectance(metadata[REFLECTANCE_MULT], metadata[REFLECTANCE_ADD], metadata['SUN_ELEVATION'], metadataPath, metadata[BANDFILE])
                 print 'reflectanceRaster successfully executed' #
     
                 successful.append(BANDFILE)
