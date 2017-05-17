@@ -307,7 +307,7 @@ if __name__ == "__main__":
     
                 #simply deletes the unneeded radianceRaster
                 if keepRad != 'true':
-                    cmd = 'rm -rf ' + radianceRaster
+                    cmd = 'rm -f ' + radianceRaster
                     os.system(cmd)
     
                 successful.append(BANDFILE)

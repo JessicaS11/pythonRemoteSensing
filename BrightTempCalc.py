@@ -164,7 +164,7 @@ if metadata["SPACECRAFT_ID"] == 'LANDSAT_7':
 
         #simply deletes the unneeded radianceRaster
         if keepRad != 'true':
-            cmd = 'rm -rf ' + radianceRaster
+            cmd = 'rm -f ' + radianceRaster
             os.system(cmd)
 
         successful.append(BANDFILE)
@@ -193,7 +193,7 @@ elif metadata["SPACECRAFT_ID"] == 'LANDSAT_8':
 
         #simply deletes the unneeded radianceRaster
         if keepRad != 'true':
-            cmd = 'rm -rf ' + radianceRaster
+            cmd = 'rm -f ' + radianceRaster
             os.system(cmd)
             
         successful.append(BANDFILE)
