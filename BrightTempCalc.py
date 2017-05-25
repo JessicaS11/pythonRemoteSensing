@@ -20,7 +20,7 @@ SYNTAX:
     true/false indicates whether or not to keep the intermediary radiance files\
     
 Notes:
-!!Currently does low gain (VCID-1) for Landsat 7; must be adjusted for high gain (in acquireMetadata) or for other Landsats (4,5)
+!!Currently does high gain (VCID-2) for Landsat 7; must be adjusted for low gain (in acquireMetadata) or for other Landsats (4,5)
 !!You can only do one band at a time (due to LS8 bands being 10 and 11, ie double digit)
 """
 
@@ -42,8 +42,8 @@ def acquireMetadata(metadata, band):
     #data needed for Landsats 4,5, and 7 radiance
     if metadata["SPACECRAFT_ID"] == "LANDSAT_7":
         #determine band 6 gain setting for LS7        
-        band = band + "_VCID_1"
-        print "NOTICE: Using LOW GAIN thermal band for Landsat 7"
+        band = band + "_VCID_2"
+        print "NOTICE: Using HIGH GAIN thermal band for Landsat 7"
         #Metadata exists in one of two standard formats (finds the correct name for each field)
         if ("RADIANCE_MAXIMUM_BAND_" + band) in metadata.keys(): 
             BANDFILE = "FILE_NAME_BAND_" + band
@@ -157,10 +157,10 @@ if metadata["SPACECRAFT_ID"] == 'LANDSAT_7':
     print 'bandfile is ', metadata[BANDFILE] #
     try:
         radianceRaster = toa.calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadataPath, metadata[BANDFILE], band)
-        print 'radianceRaster successfully executed'    
+        #print 'radianceRaster successfully executed'    
                 
         brightnessRaster = calcBrightTemp (K1, K2, radianceRaster, metadataPath, band)
-        print 'brightnessRaster successfully executed'
+        #print 'brightnessRaster successfully executed'
 
         #simply deletes the unneeded radianceRaster
         if keepRad != 'true':
@@ -186,10 +186,10 @@ elif metadata["SPACECRAFT_ID"] == 'LANDSAT_8':
     
     try:
         radianceRaster = LS8_calcRadiance (metadata[RADIANCE_MULT], metadata[RADIANCE_ADD], metadataPath, metadata[BANDFILE], band)
-        print 'radianceRaster successfully executed' #
+        #print 'radianceRaster successfully executed' #
         
         brightnessRaster = calcBrightTemp (metadata[K1], metadata[K2], radianceRaster, metadataPath, band)
-        print 'brightness temperature successfully executed'
+        #print 'brightness temperature successfully executed'
 
         #simply deletes the unneeded radianceRaster
         if keepRad != 'true':
