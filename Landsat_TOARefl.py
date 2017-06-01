@@ -76,6 +76,7 @@ def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, path, QCAL, band):
     inraster_open = gdal.Open(path+QCAL)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
     radiance = path + 'RadianceB'+str(band)+'.tif'
+#    radiance = path+path[-22:-1]+'_B'+str(band)+'_radiance.tif'
     inraster_open = None
 
     '''
@@ -104,9 +105,10 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, path, scale
     solarZenith = ((90.0 - (float(solarElevation)))*math.pi)/180 #Converted from deg to rad (python takes angles in rad)
     solarDist = float(solarDist)
     ESUN = float(ESUN)
-    print radianceRaster
+#    print radianceRaster
     radiance_open = gdal.Open(radianceRaster)
     radiance_array = radiance_open.GetRasterBand(1).ReadAsArray() 
+#    reflectance = path + 'ReflecB'+str(band)+'.tif'
     reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
     radiance_open = None
     
@@ -115,10 +117,8 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, path, scale
 #     #print 'solarDistSquared ='+str(math.pow(solarDist, 2))
 #     print 'ESUN = '+str(ESUN)
 #     print 'solarZenith = '+str(solarZenith)
-
     outraster_array = (math.pi * radiance_array * math.pow(solarDist, 2)) / (ESUN * math.cos(solarZenith)) * scaleFactor
     reflectance = raster.rasterfile(radianceRaster, reflectance, outraster_array, dtype=gdal.GDT_Float32)
-
     return reflectance
     
     
@@ -235,7 +235,7 @@ def readMetadata(metadataFile):
             metadata [val[0].strip()] = val[1].strip().strip('"')      
         else:
             break
-
+	
     return metadata
 
 
@@ -293,18 +293,18 @@ if __name__ == "__main__":
             QCALMIN = metlist[5]
             DATE = metlist[6]
             ESUNVAL = "b" + band
-        
+            
             #print 'bandfile is ', metadata[BANDFILE] #
             try:
                 radianceRaster = calcRadiance(metadata[LMAX], metadata[LMIN], metadata[QCALMAX], metadata[QCALMIN], metadataPath, metadata[BANDFILE], band)
                 #print 'radianceRaster successfully executed'    
-                
+
                 doy = calcDOY(metadata[DATE])
                 #print 'doy is ', doy    #
                         
                 reflectanceRaster = calcReflectance(calcSolarDist(calcDOY(metadata[DATE])), getESUN(ESUNVAL, SIType), metadata['SUN_ELEVATION'], radianceRaster, metadataPath, scaleFactor)
                 #print 'reflectanceRaster successfully executed'
-    
+                
                 #simply deletes the unneeded radianceRaster
                 if keepRad != 'true':
                     cmd = 'rm -f ' + radianceRaster

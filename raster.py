@@ -23,18 +23,18 @@ def rasterfile (infile, new_raster_name, new_raster_array, dtype):
     #read in original raster (input file) as an array
     infile_open = gdal.Open(infile)
     infile_array = infile_open.GetRasterBand(1).ReadAsArray()  
-    
+
     #get geo info from original
     geo = infile_open.GetGeoTransform()
     
-    #create new GeoTiff, apply georef info, and write new raster
-    outfile = gdal.GetDriverByName('GTiff').Create(new_raster_name, infile_array.shape[1], infile_array.shape[0], 1, dtype)
+    #create new GeoTiff, apply georef info, and write new raster    
+    outfile = gdal.GetDriverByName('GTiff').Create(new_raster_name, infile_array.shape[1], infile_array.shape[0], 1, dtype)        
     outfile.SetGeoTransform((geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]))
     outfile.SetProjection(infile_open.GetProjection())
     outfile.GetRasterBand(1).WriteArray(new_raster_array)
-   
+    
     infile_open = None
-    outfile= None
+    outfile = None
     return new_raster_name
     
     
