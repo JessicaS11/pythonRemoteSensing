@@ -89,7 +89,9 @@ def calcRadiance (LMAX, LMIN, QCALMAX, QCALMIN, path, QCAL, band):
     '''    
     
     outraster_array = (offset * (inraster_array-QCALMIN)) + LMIN
-    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
+    outraster_array[(inraster_array==0)] = -9999
+    #code improvement: is there a better way than the above line to take whatever the nodata value is and use that, vs assuming it's 0?
+    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, gdal.GDT_Float32, -9999)
     
     return radiance
 
@@ -118,7 +120,10 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, path, scale
 #     print 'ESUN = '+str(ESUN)
 #     print 'solarZenith = '+str(solarZenith)
     outraster_array = (math.pi * radiance_array * math.pow(solarDist, 2)) / (ESUN * math.cos(solarZenith)) * scaleFactor
-    reflectance = raster.rasterfile(radianceRaster, reflectance, outraster_array, dtype=gdal.GDT_Float32)
+    outraster_array[(radiance_array==-9999)] = -9999
+    #code improvement: is there a better way than the above line to take whatever the nodata value is and use that, vs assuming it's -9999?
+
+    reflectance = raster.rasterfile(radianceRaster, reflectance, outraster_array, gdal.GDT_Float32, -9999)
     return reflectance
     
     
@@ -139,7 +144,10 @@ def LS8_calcReflectance(refl_mult, refl_add, solarElevation, path, QCAL):
 #     print 'refl_add = ' + str(refl_add)
 
     outraster_array = ((refl_mult * inraster_array) + refl_add) / (math.sin(solarElevationRad))
-    reflectance = raster.rasterfile(path+QCAL, reflectance, outraster_array, dtype=gdal.GDT_Float32)
+    outraster_array[(inraster_array==0)] = -9999
+    #code improvement: is there a better way than the above line to take whatever the nodata value is and use that, vs assuming it's -9999?
+
+    reflectance = raster.rasterfile(path+QCAL, reflectance, outraster_array, gdal.GDT_Float32, -9999)
     
     return reflectance
 

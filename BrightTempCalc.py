@@ -90,7 +90,9 @@ def LS8_calcRadiance (rad_mult, rad_add, path, QCAL, band):
     inraster_open = None
     
     outraster_array = ((rad_mult * inraster_array) + rad_add)
-    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, dtype=gdal.GDT_Float32)
+    outraster_array[(inraster_array==0)] = -9999
+    #code improvement: is there a better way than the above line to take whatever the nodata value is and use that, vs assuming it's 0?
+    radiance = raster.rasterfile(path+QCAL, radiance, outraster_array, gdal.GDT_Float32, -9999)
     
     return radiance
 
@@ -113,8 +115,10 @@ def calcBrightTemp (K1, K2, radiance, path, band):
     inraster_array[is_zero] = 1   
     
     outraster_array = (K2 / (np.log((K1/inraster_array) + 1)))
-    outraster_array[is_zero] = 0
-    BrightTemp = raster.rasterfile(radiance, BT, outraster_array, dtype=gdal.GDT_Float32)
+    outraster_array[is_zero] = -9999
+    outraster_array[(inraster_array==-9999)] = -9999
+    #code improvement: is there a better way than the above line to take whatever the nodata value is and use that, vs assuming it's -9999?
+    BrightTemp = raster.rasterfile(radiance, BT, outraster_array, gdal.GDT_Float32, -9999)
     
     return BrightTemp
     

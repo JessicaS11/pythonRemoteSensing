@@ -18,8 +18,8 @@ trim_raster fn assumes projections match --> ideally this step would include a c
 import os
 from osgeo import gdal
 
-#creates a georeferenced tif raster file with the same dimensions and geo info/proj coord sys as the parent raster
-def rasterfile (infile, new_raster_name, new_raster_array, dtype):    
+#creates a georeferenced tif raster file with the same dimensions and geo info/proj coord sys as the parent raster. *args[0] is nodata value
+def rasterfile (infile, new_raster_name, new_raster_array, dtype, *args):    
     #read in original raster (input file) as an array
     infile_open = gdal.Open(infile)
     infile_array = infile_open.GetRasterBand(1).ReadAsArray()  
@@ -32,6 +32,11 @@ def rasterfile (infile, new_raster_name, new_raster_array, dtype):
     outfile.SetGeoTransform((geo[0], geo[1], geo[2], geo[3], geo[4], geo[5]))
     outfile.SetProjection(infile_open.GetProjection())
     outfile.GetRasterBand(1).WriteArray(new_raster_array)
+    
+    if args:
+        outfile.GetRasterBand(1).SetNoDataValue(args[0])
+    elif dtype == gdal.GDT_Float32:
+        outfile.GetRasterBand(1).SetNoDataValue(-9999)
     
     infile_open = None
     outfile = None
