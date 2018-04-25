@@ -111,7 +111,8 @@ def calcReflectance(solarDist, ESUN, solarElevation, radianceRaster, path, scale
     radiance_open = gdal.Open(radianceRaster)
     radiance_array = radiance_open.GetRasterBand(1).ReadAsArray() 
 #    reflectance = path + 'ReflecB'+str(band)+'.tif'
-    reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
+    filename_pref = os.path.basename(os.path.dirname(path))
+    reflectance = path+filename_pref+'_B'+str(band)+'_refl.tif'
     radiance_open = None
     
 #     print 'Band'+str(band)
@@ -135,7 +136,9 @@ def LS8_calcReflectance(refl_mult, refl_add, solarElevation, path, QCAL):
     refl_add = float(refl_add)
     inraster_open = gdal.Open(path+QCAL)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
+    filename_pref = os.path.basename(os.path.dirname(path))
+    reflectance = path+filename_pref+'_B'+str(band)+'_refl.tif'
+#    reflectance = path+path[-22:-1]+'_B'+str(band)+'_refl.tif'
     inraster_open = None
     
     # print 'Band'+str(band)

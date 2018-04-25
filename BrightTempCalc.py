@@ -104,7 +104,9 @@ def calcBrightTemp (K1, K2, radiance, path, band):
     K2 = float(K2)
     inraster_open = gdal.Open(radiance)
     inraster_array = inraster_open.GetRasterBand(1).ReadAsArray() 
-    BT = path+path[-22:-1]+'_B'+str(band)+'_bt.tif'
+    filename_pref = os.path.basename(os.path.dirname(path))
+    BT = path+filename_pref+'_B'+str(band)+'_bt.tif'
+#    BT = path+path[-22:-1]+'_B'+str(band)+'_bt.tif'
     inraster_open = None
     
 #    if not inraster_array.all():
